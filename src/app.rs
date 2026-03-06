@@ -54,14 +54,25 @@ impl Cli {
             .create(&self.driver_plugin_path())?;
 
         info!("creating CDI directory, if not present");
-        fs::create_dir_all(&self.config.cdi_root)?;
-        let meta = fs::metadata(&self.config.cdi_root)?;
-        if !meta.is_dir() {
-            anyhow::bail!(
-                "path for cdi file generation is not a directory: {}",
-                self.config.cdi_root
-            );
-        }
+
+        match fs::metadata(&self.config.cdi_root) {
+            Ok(m) => {
+                if !m.is_dir() {
+                    anyhow::bail!(
+                        "path for cdi file generation is not a directory: {}",
+                        &self.config.cdi_root
+                    );
+                }
+            }
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::NotFound => {
+                    fs::DirBuilder::new()
+                        .mode(0o750)
+                        .create(&self.config.cdi_root)?;
+                }
+                _ => anyhow::bail!(e),
+            },
+        };
 
         let driver = driver::Driver::new(&self.config);
 
