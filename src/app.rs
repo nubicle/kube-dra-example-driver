@@ -3,11 +3,10 @@ use std::os::unix::fs::DirBuilderExt;
 use std::path::{self, PathBuf};
 
 use clap::{Args, Parser};
-use tracing::info;
 
 use crate::driver;
 
-const CDI_ROOT: &str = "/etc/cdi";
+// const CDI_ROOT: &str = "/etc/cdi";
 
 #[derive(Parser)]
 #[command(name = "example-driver")]
@@ -29,8 +28,8 @@ pub struct Config {
     pub device_profile: String,
 
     /// Absolute path to the directory where CDI files will be generated.
-    #[arg(long, env = "CDI_ROOT", default_value_t = String::from(CDI_ROOT))]
-    pub cdi_root: String,
+    // #[arg(long, env = "CDI_ROOT", default_value_t = String::from(CDI_ROOT))]
+    // pub cdi_root: String,
 
     /// Absolute path to the directory where kubelet stores plugin data.
     #[arg(long, env = "KUBELET_PLUGINS_DIRECTORY_PATH")]
@@ -42,52 +41,43 @@ pub struct Config {
 }
 
 impl Cli {
-    pub fn run(&mut self) -> anyhow::Result<()> {
+    pub async fn run(&mut self) -> anyhow::Result<()> {
         if self.config.driver_name == None {
-            self.config.driver_name = Some(self.config.device_profile.clone() + "example.com");
+            self.config.driver_name = Some(self.config.device_profile.clone() + ".example.com");
         }
 
-        // create kubernetes client
-        info!("creating directory under kubelet plugins");
         fs::DirBuilder::new()
+            .recursive(true)
             .mode(0o750)
             .create(&self.driver_plugin_path())?;
 
-        info!("creating CDI directory, if not present");
+        // match fs::metadata(&self.config.cdi_root) {
+        //     Ok(m) => {
+        //         if !m.is_dir() {
+        //             anyhow::bail!(
+        //                 "path for cdi file generation is not a directory: {}",
+        //                 &self.config.cdi_root
+        //             );
+        //         }
+        //     }
+        //     Err(e) => match e.kind() {
+        //         std::io::ErrorKind::NotFound => {
+        //             fs::DirBuilder::new()
+        //                 .recursive(true)
+        //                 .mode(0o750)
+        //                 .create(&self.config.cdi_root)?;
+        //         }
+        //         _ => anyhow::bail!(e),
+        //     },
+        // };
 
-        match fs::metadata(&self.config.cdi_root) {
-            Ok(m) => {
-                if !m.is_dir() {
-                    anyhow::bail!(
-                        "path for cdi file generation is not a directory: {}",
-                        &self.config.cdi_root
-                    );
-                }
-            }
-            Err(e) => match e.kind() {
-                std::io::ErrorKind::NotFound => {
-                    fs::DirBuilder::new()
-                        .mode(0o750)
-                        .create(&self.config.cdi_root)?;
-                }
-                _ => anyhow::bail!(e),
-            },
-        };
-
-        let driver = driver::Driver::new(&self.config);
-
-        info!(
-            "starting the driver: {}",
-            &self.config.driver_name.as_ref().unwrap()
-        );
-        driver.start()?;
+        let mut driver = driver::Driver::new(&self.config);
+        driver.start().await?;
 
         // after a signal stop the driver
-        info!(
-            "stopping the driver: {}",
-            &self.config.driver_name.as_ref().unwrap()
-        );
-        driver.stop()?;
+        tokio::signal::ctrl_c().await?;
+
+        driver.stop().await?;
 
         Ok(())
     }
