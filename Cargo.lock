@@ -490,13 +490,16 @@ checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 [[package]]
 name = "kube-dra"
 version = "0.0.1"
-source = "git+https://github.com/nubicle/kube-dra.git?branch=plugin_registration#d105e1b00263cf6bf36c7a00ecdbf1e095715b7c"
+source = "git+https://github.com/nubicle/kube-dra.git?branch=plugin_registration#cd06a61310155727f3fea38e6a5776d556045dd4"
 dependencies = [
  "anyhow",
  "prost",
+ "tokio",
  "tonic",
  "tonic-prost",
  "tonic-prost-build",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
