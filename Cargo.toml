@@ -3,6 +3,9 @@ name = "example-driver"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+strip = "debuginfo"
+
 [dependencies]
 anyhow = "1.0.102"
 clap = { version = "4.5.60", features = ["derive", "env"] }
@@ -13,3 +16,9 @@ tokio = { version = "1.50.0", features = ["macros", "signal", "rt", "rt-multi-th
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
+[patch.crates-io]
+# Patch is still needed, using one from upstream PR for now, hosted on a fork of ours to help
+# with supply chain integrity.
+# h2 PR #487 — skip :authority validation for Unix domain sockets
+# Remove once https://github.com/hyperium/h2/pull/487 is merged and released
+h2 = { git = 'https://github.com/nubicle/h2', branch = 'patch-authority'}
