@@ -3,6 +3,7 @@ use std::os::unix::fs::DirBuilderExt;
 use std::path::{self, PathBuf};
 
 use clap::{Args, Parser};
+use tokio::signal::unix;
 
 use crate::driver;
 
@@ -24,7 +25,7 @@ pub struct Config {
     pub driver_name: Option<String>,
 
     /// Name of the device profile.
-    #[arg(long, env = "DEVICE_PROFILE", default_value_t = String::from("gpu"))]
+    #[arg(long, env = "DEVICE_PROFILE", default_value = "gpu")]
     pub device_profile: String,
 
     /// Absolute path to the directory where CDI files will be generated.
@@ -32,12 +33,28 @@ pub struct Config {
     // pub cdi_root: String,
 
     /// Absolute path to the directory where kubelet stores plugin data.
-    #[arg(long, env = "KUBELET_PLUGINS_DIRECTORY_PATH")]
+    #[arg(
+        long,
+        env = "KUBELET_PLUGINS_DIRECTORY_PATH",
+        default_value = "/var/lib/kubelet/plugins"
+    )]
     pub kubelet_plugins_directory_path: String,
 
     /// Absolute path to the directory where kubelet stores plugin registrations.
-    #[arg(long, env = "KUBELET_REGISTRAR_DIRECTORY_PATH")]
+    #[arg(
+        long,
+        env = "KUBELET_REGISTRAR_DIRECTORY_PATH",
+        default_value = "/var/lib/kubelet/plugins_registry"
+    )]
     pub kubelet_registrar_directory_path: String,
+}
+
+impl Config {
+    pub(super) fn driver_plugin_path(&self) -> path::PathBuf {
+        let driver_name = &self.driver_name.as_ref().unwrap();
+
+        PathBuf::from(&self.kubelet_plugins_directory_path).join(driver_name)
+    }
 }
 
 impl Cli {
@@ -49,7 +66,7 @@ impl Cli {
         fs::DirBuilder::new()
             .recursive(true)
             .mode(0o750)
-            .create(&self.driver_plugin_path())?;
+            .create(&self.config.driver_plugin_path())?;
 
         // match fs::metadata(&self.config.cdi_root) {
         //     Ok(m) => {
@@ -75,16 +92,18 @@ impl Cli {
         driver.start().await?;
 
         // after a signal stop the driver
-        tokio::signal::ctrl_c().await?;
-
+        shutdown_signal().await;
         driver.stop().await?;
 
         Ok(())
     }
+}
 
-    fn driver_plugin_path(&self) -> path::PathBuf {
-        let driver_name = &self.config.driver_name.as_ref().unwrap();
+async fn shutdown_signal() {
+    let mut sigterm = unix::signal(unix::SignalKind::terminate()).unwrap();
 
-        PathBuf::from(&self.config.kubelet_plugins_directory_path).join(driver_name)
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {},
+        _ = sigterm.recv() => {},
     }
 }
