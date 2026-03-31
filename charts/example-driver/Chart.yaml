@@ -1,0 +1,7 @@
+apiVersion: v2
+name: example-driver
+home: https://github.com/nubicle/kube-dra-example-driver
+description: An example Helm chart for a Dynamic Resource Allocation (DRA) driver
+type: application
+appVersion: 0.1.0
+version: 0.1.0

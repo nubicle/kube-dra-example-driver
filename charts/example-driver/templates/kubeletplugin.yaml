@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-kubeletplugin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    helm.sh/chart: example-driver
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: kubeletplugin
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: kubeletplugin
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: example-driver
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: kubeletplugin
+    spec:
+      serviceAccountName: {{ .Release.Name }}-sa
+      containers:
+        - name: plugin
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["example-driver"]
+          env:
+          {{- if .Values.driverName }}
+          - name: DRIVER_NAME
+            value: {{ .Values.driverName | quote }}
+          {{- end}}
+          - name: DEVICE_PROFILE
+            value: {{ .Values.deviceProfile | quote }}
+          - name: KUBELET_PLUGINS_DIRECTORY_PATH
+            value: {{ .Values.kubelet.pluginsDirectoryPath | quote }}
+          - name: KUBELET_REGISTRAR_DIRECTORY_PATH
+            value: {{ .Values.kubelet.registrarDirectoryPath | quote }}
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          volumeMounts:
+          - name: plugins
+            mountPath: {{ .Values.kubelet.pluginsDirectoryPath | quote }}
+          - name: plugins-registry
+            mountPath: {{ .Values.kubelet.registrarDirectoryPath | quote }}
+      volumes:
+      - name: plugins
+        hostPath:
+          path: {{ .Values.kubelet.pluginsDirectoryPath | quote }}
+      - name: plugins-registry
+        hostPath:
+          path: {{ .Values.kubelet.registrarDirectoryPath | quote }}

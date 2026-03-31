@@ -1,0 +1,27 @@
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+# This sets the container image. 
+# More information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  repository: "ghcr.io/nubicle/example-driver"
+  # This sets the pull policy for images.
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# deviceProfile describes the overall shape of the devices managed by the
+# driver. Available profiles are:
+#   - "gpu": Node-local devices configurable through opaque config
+deviceProfile: "gpu"
+
+# driverName uniquely identifies the driver within the cluster. When empty, its
+# value is derived from the deviceProfile as "<deviceProfile>.example.com".
+driverName: ""
+
+kubelet:
+  # Directory where kubelet stores plugin data (sockets).
+  pluginsDirectoryPath: /var/lib/kubelet/plugins
+  # Directory where kubelet stores plugin registrations.
+  registrarDirectoryPath: /var/lib/kubelet/plugins_registry
